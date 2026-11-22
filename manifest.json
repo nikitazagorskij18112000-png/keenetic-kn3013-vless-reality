@@ -1,0 +1,45 @@
+{
+  "kit_version": "0.1.0",
+  "model": "KN-3013 EAEU",
+  "sdk_url": "https://github.com/keenetic/keenetic-sdk.git",
+  "sdk_ref": "5.01.C.8.0-2",
+  "sdk_commit": "5c74fc4d907383c91e8d6af3f5d67501f7acb171",
+  "stock": {
+    "url": "https://osvault.keenetic.net/KN-3013/5.01/KN-3013_stable_5.1.8_5.01.C.8.0-2.bin",
+    "sha256": "d3108ef3081afb118c7d3d4bcd8512dc27976c7d909a6f185452ec0f4d6663e0",
+    "max_bytes": 28000000
+  },
+  "xray": {
+    "version": "26.11.9",
+    "url": "https://github.com/XTLS/Xray-core/releases/download/v26.11.9/Xray-linux-mips32le.zip",
+    "sha256": "793dc40029283eb9ccead188b05abf0d34b64aab16ad1f6eadd204963a54837b",
+    "binary_sha256": "5058314c99ec5fc4896b5c7bc55e1b3f7752e754c9df95f8244dab3a4dd8e052",
+    "max_bytes": 80000000
+  },
+  "routing": [
+    {
+      "name": "russia-inside.txt",
+      "url": "https://raw.githubusercontent.com/itdoginfo/allow-domains/932e11c43a9e000a24ba08129c15d99287c6e9a9/Russia/inside-raw.lst",
+      "sha256": "f1b6ccbf8ea96272af0ae178388814d400009cee541a55b6aa976612aed28ca6",
+      "max_bytes": 4000000
+    },
+    {
+      "name": "telegram-domains.txt",
+      "url": "https://raw.githubusercontent.com/itdoginfo/allow-domains/932e11c43a9e000a24ba08129c15d99287c6e9a9/Services/telegram.lst",
+      "sha256": "13c98dacc0f99a5fccf51ec3f12054f599dbc34e7282348c3722125922834b7a",
+      "max_bytes": 4000000
+    },
+    {
+      "name": "telegram-ipv4.txt",
+      "url": "https://raw.githubusercontent.com/itdoginfo/allow-domains/932e11c43a9e000a24ba08129c15d99287c6e9a9/Subnets/IPv4/telegram.lst",
+      "sha256": "985fc6c3cc167f67baa8d7fb4b27f1b9307f179639c421c0900c0f04b7b63cac",
+      "max_bytes": 4000000
+    },
+    {
+      "name": "russia-ip.txt",
+      "url": "https://raw.githubusercontent.com/Loyalsoldier/geoip/08dc0ddde458400f3e6e2afeca1c0a1d5084f0fc/text/ru.txt",
+      "sha256": "a8c5a50d1e65094ac81189da7f358a8a0edd0579fbf0aa45c00757b32e067ae8",
+      "max_bytes": 4000000
+    }
+  ]
+}
