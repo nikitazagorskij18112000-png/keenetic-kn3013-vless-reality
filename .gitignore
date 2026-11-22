@@ -1,0 +1,5 @@
+# This publication directory contains documentation only.
+# A deny-by-default list helps avoid adding private firmware or backups.
+*
+!.gitignore
+!README.md
