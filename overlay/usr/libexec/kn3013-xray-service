@@ -1,0 +1,119 @@
+#!/bin/ash
+# Embedded Xray service. Only listens on loopback as configured in config.json.
+# No firewall, routing, NDM configuration or persistent flash writes here.
+PATH=/bin:/sbin:/usr/bin:/usr/sbin
+export PATH
+umask 077
+BB=/bin/busybox
+XRAY=/usr/bin/xray
+CONFIG=/etc/xray/config.json
+STATE=/tmp/kn3013-xray
+PIDFILE=$STATE/pid
+LOCK=$STATE/lock
+DISABLED=$STATE/disabled
+CLOCKLOCK=$STATE/clock-wait
+
+clock_ready() {
+    # Xray 26.11.x computes browser versions from the wall clock during init.
+    # A router booting at the Unix epoch can panic before reading its config.
+    # Let Keenetic's normal time synchronization set a plausible date first.
+    clock_epoch=$("$BB" date +%s 2>/dev/null) || return 1
+    case "$clock_epoch" in ''|*[!0-9]*) return 1 ;; esac
+    [ "$clock_epoch" -ge 1704067200 ] # 2024-01-01 UTC
+}
+
+running() {
+    [ -s "$PIDFILE" ] || return 1
+    read -r xray_pid < "$PIDFILE" || return 1
+    case "$xray_pid" in ''|*[!0-9]*) return 1 ;; esac
+    kill -0 "$xray_pid" 2>/dev/null || return 1
+    [ "$("$BB" readlink "/proc/$xray_pid/exe" 2>/dev/null)" = "$XRAY" ]
+}
+
+log() {
+    "$BB" logger -t kn3013-xray "$*"
+}
+
+action=${1:-status}
+case "$action" in
+    status)
+        if running; then
+            printf 'Xray running (PID %s), local SOCKS5 port 1080.\n' "$xray_pid"
+        elif [ ! -r "$CONFIG" ]; then
+            printf 'Xray installed; client configuration has not been supplied.\n'
+        elif [ -e "$DISABLED" ]; then
+            printf 'Xray stopped until manual start or router reboot.\n'
+        else
+            printf 'Xray stopped.\n'
+        fi
+        exit 0
+        ;;
+    auto|start|stop) ;;
+    *) printf 'Usage: %s {status|auto|start|stop}\n' "$0" >&2; exit 2 ;;
+esac
+
+"$BB" mkdir -p "$STATE" || exit 1
+[ "$action" = stop ] || [ -r "$CONFIG" ] || exit 0
+# NDM invokes this service in the background. Keep only one small waiting
+# worker while the router has no usable clock. This lock is separate from
+# the service lock, so a manual stop can still cancel a pending startup.
+if [ "$action" != stop ] && ! clock_ready; then
+    [ "$action" != start ] || "$BB" rm -f "$DISABLED"
+    [ ! -e "$DISABLED" ] || exit 0
+    if ! "$BB" mkdir "$CLOCKLOCK" 2>/dev/null; then
+        [ "$action" = auto ] || printf 'Xray is waiting for the router clock.\n'
+        exit 0
+    fi
+    trap '"$BB" rmdir "$CLOCKLOCK" 2>/dev/null' EXIT
+    trap 'exit 1' HUP INT TERM
+    log 'Waiting for the router clock before starting Xray.'
+    while ! clock_ready; do
+        [ ! -e "$DISABLED" ] || exit 0
+        "$BB" sleep 5
+    done
+    "$BB" rmdir "$CLOCKLOCK" || exit 1
+    trap - EXIT
+fi
+
+# Network events can overlap: one invocation owns the launch/stop operation.
+if ! "$BB" mkdir "$LOCK" 2>/dev/null; then
+    [ "$action" = auto ] && exit 0
+    printf 'Another Xray service operation is in progress; retry shortly.\n' >&2
+    exit 1
+fi
+trap '"$BB" rmdir "$LOCK" 2>/dev/null' EXIT
+trap 'exit 1' HUP INT TERM
+
+if [ "$action" = stop ]; then
+    : > "$DISABLED"
+    if running; then
+        "$BB" start-stop-daemon -K -p "$PIDFILE" -x "$XRAY" -s TERM
+        log 'Stop requested.'
+    fi
+    exit 0
+fi
+
+if [ "$action" = auto ] && [ -e "$DISABLED" ]; then
+    exit 0
+fi
+[ "$action" != start ] || "$BB" rm -f "$DISABLED"
+running && exit 0
+[ -r "$CONFIG" ] || exit 0
+[ -x "$XRAY" ] || { log 'Xray executable is missing.'; exit 1; }
+
+# These are Go GC targets, not hard RAM limits; real router RAM needs measuring.
+export GOMEMLIMIT=24MiB
+export GOGC=50
+export GOMAXPROCS=2
+if ! "$BB" timeout 20 "$XRAY" run -test -config "$CONFIG" > "$STATE/config-check.log" 2>&1; then
+    log 'Startup check failed; see temp:/kn3013-xray/config-check.log.'
+    exit 1
+fi
+
+"$BB" rm -f "$PIDFILE"
+if "$BB" start-stop-daemon -S -b -m -p "$PIDFILE" -x "$XRAY" -- run -config "$CONFIG"; then
+    log 'Xray launch requested; SOCKS5 is local to this router.'
+else
+    log 'Could not launch Xray.'
+    exit 1
+fi
