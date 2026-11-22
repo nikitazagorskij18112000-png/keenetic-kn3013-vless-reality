@@ -1,5 +1,25 @@
-# This publication directory contains documentation only.
-# A deny-by-default list helps avoid adding private firmware or backups.
-*
-!.gitignore
-!README.md
+# Publish only source, documentation and the pinned manifest.
+/*
+!/.gitignore
+!/.gitattributes
+!/README.md
+!/LICENSE
+!/NOTICE.md
+!/manifest.json
+!/requirements.txt
+!/build.py
+!/build.sh
+!/lib/
+!/tests/
+!/scripts/
+!/docs/
+!/overlay/
+__pycache__/
+*.py[cod]
+*.bin
+*.zip
+*.log
+client.json
+config.json
+*.partial
+*.vless
